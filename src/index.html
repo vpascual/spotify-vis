@@ -1,6 +1,7 @@
 <html>
     <title>Small Multiples by OneTandem</title>
     <head>
+        <meta charset="UTF-8">
         <meta name="author" content="Victor Pascual">
         <script src="https://d3js.org/d3.v4.min.js"></script>
         <script
@@ -21,7 +22,7 @@
     </head>
     <body>
         <div class="container">
-            <h1>The Rise and Decline of Ask MetaFilter</h1>
+            <h1>¿Cuál es el festival de verano más bailable? ¿Y el más triste?</h1>
             <div id="lead">
             <p>Metafilter's revenue has been on the decline, but has its content dried up as well?</p>
             <p>Here we look at new posts on Ask Metafilter by category.<br/>Categories like <strong>computers &amp; internet</strong> have been dropping in use for a long time, most likely due to competition like Stack Overflow.<br/>Other smaller categories have had consistent use patterns until more recently.</p>
@@ -29,8 +30,8 @@
             </div>
             <div id="main">
             <div id="button-wrap">
-                <div id="count" class="button active">COUNT</div>
-                <div id="name" class="button">NAME</div>
+                <div id="danceability" class="button active">Bailabilidad</div>
+                <div id="valence" class="button">Tristeza</div>
             </div>
             
             <div id="vis"></div>
@@ -77,134 +78,184 @@
                     // ...
                 });
 
-            d3.tsv("danceability.tsv", function(rawData) {
-                console.log(rawData);
-                rawData.forEach((d) => {
-                   d.danceability = +d.danceability;
-                   d.value = d.value.replace(',', '.');
-                   d.value = +d.value;
-                });
-
-                var maxDancebility = d3.max(rawData, (d) => { return d.value; });
-
-                data = d3.nest()
-                    .key(function(d) { return d.band; })
-                    .sortValues((a, b) => {
-                        return d3.ascending(a.danceability, b.danceability);
-                    })
-                    .entries(rawData);
-
-                var div = d3.select("#vis")
-                    .selectAll(".chart")
-                    .data(data);
-
-                var svg = div.enter()
-                    .append('div')
-                    .attr('class', 'chart')
-                    .append('svg')
-                        .attr('width', width + margin.left + margin.top)
-                        .attr('height', height + margin.top + margin.bottom);
+            d3.tsv("danceability.tsv", (rawDataDance) => {
+                d3.tsv("valence.tsv", (rawDataValence) => {
                     
-                var g = svg.append('g')
-                    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');                
-
-                g.append('rect')
-                    .attr('class', 'background')
-                    .style('pointer-events', 'all')
-                    .attr('width', width + margin.right)
-                    .attr('height', height)
-                    .on("mouseover", mouseover)
-                    .on("mousemove", mousemove)
-                    .on("mouseout", mouseout);
-
-                var xScale = d3.scaleLinear().range([0, width]);
-                var yScale = d3.scaleLinear().range([height, 0]).domain([0, maxDancebility])
-                    
-
-                var percentFormat = d3.format(".0%");
-                var axisLeft = d3.axisLeft(yScale)
-                    .ticks(5)
-                    .tickFormat(percentFormat);
-
-                g.append("g")
-                    .call(axisLeft);
-
-                var axisBottom = d3.axisBottom(xScale)
-                    .ticks(5);
-
-                g.append("g")
-                    .attr("transform", "translate(0," + height + ")")
-                    .call(axisBottom);
-
-                var line = d3.line()
-                    .x(function(d) { return xScale(d.danceability); })
-                    .y(function(d) { return yScale(d.value); });
-
-                var area = d3.area()                
-                    .x(function(d) { 
-                        return xScale(d.danceability); })
-                    .y0(height).y1(function(d) { 
-                        return yScale(d.value); });
-
-                lines = g.append("g")
-                    .on("mouseover", mouseover)
-                    .on("mousemove", mousemove)
-                    .on("mouseout", mouseout);
-
-                lines.append("text")
-                    .attr("class", "title")
-                    .attr("text-anchor", "middle")
-                    .attr("y", -20)
-                    .attr("dy", margin.bottom / 2 + 5)
-                    .attr("x", width / 2 + 8)
-                    .text((d) => d.key)
-
-                lines.append("path")
-                    .attr("class", "area")
-                    .attr("d", function(c) {
-                        return area(c.values);
+                    rawDataDance.forEach((d) => {
+                        d.danceability = +d.danceability;
+                        d.bin = d.danceability;
+                        d.value = +d.value.replace(',', '.');
                     });
 
-                lines.append("path")
-                    .attr("class", "line")
-                    .attr("d", function(c) {
-                        return line(c.values);
+                    rawDataValence.forEach((d) => {
+                        d.valence = d.valence.replace(',', '.');;
+                        d.valence = +d.valence;
+                        d.bin = d.valence;
+                        d.value = +d.value.replace(',', '.');
                     });
 
-                // hide for now
-                circle = lines.append("circle")
-                    .attr("r", 2.2)
-                    .attr("opacity", 0);
+                    var maxDancebility = d3.max(rawDataDance, (d) => { return d.value; });
 
-                function mouseover() {
-                    circle.attr("opacity", 1.0);
-                };
-
-                function mouseout() {
-                    circle.attr("opacity", 0);
-                    return true;
-                };
-
-                function mousemove() {
-                    // 'this' is current DOM element
-                    var xpos = d3.mouse(this)[0];
-                    var xBar = xScale.invert(xpos);
-                    var index = 0;
-
-                    circle
-                        .attr("cx", (c) => {
-                            index = bisect(c.values, xBar, 0, c.values.length - 1);
-                            return xScale(c.values[index].danceability);
+                    dataDance = d3.nest()
+                        .key(function(d) { return d.band; })
+                        .sortValues((a, b) => {
+                            return d3.ascending(a.bin, b.bin);
                         })
-                        .attr("cy", (c) => {
-                            index = bisect(c.values, xBar, 0, c.values.length - 1);
-                            return yScale(c.values[index].value);
-                        });
-                }
+                        .entries(rawDataDance);
 
-                //create bisector
-                // (binary search)
-                var bisect = d3.bisector(function(d) { return d.danceability; }).left;
-            });
+                    dataValence = d3.nest()
+                        .key(function(d) { return d.band; })
+                        .sortValues((a, b) => {
+                            return d3.ascending(a.bin, b.bin);
+                        })
+                        .entries(rawDataValence);
+
+                    var div = d3.select("#vis")
+                        .selectAll(".chart")
+                        .data(dataDance);
+
+                    var svg = div.enter()
+                        .append('div')
+                        .attr('class', 'chart')
+                        .append('svg')
+                            .attr('width', width + margin.left + margin.top)
+                            .attr('height', height + margin.top + margin.bottom);
+                        
+                    var g = svg.append('g')
+                        .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');                
+
+                    g.append('rect')
+                        .attr('class', 'background')
+                        .style('pointer-events', 'all')
+                        .attr('width', width + margin.right)
+                        .attr('height', height)
+                        .on("mouseover", mouseover)
+                        .on("mousemove", mousemove)
+                        .on("mouseout", mouseout);
+
+                    var xScale = d3.scaleLinear().range([0, width]);
+                    var yScale = d3.scaleLinear().range([height, 0]).domain([0, maxDancebility])
+                    var percentFormat = d3.format(".0%");
+                    var axisLeft = d3.axisLeft(yScale)
+                        .ticks(5)
+                        .tickFormat(percentFormat);
+
+                    g.append("g")
+                        .call(axisLeft);
+
+                    var axisBottom = d3.axisBottom(xScale)
+                        .ticks(5);
+
+                    g.append("g")
+                        .attr("transform", "translate(0," + height + ")")
+                        .call(axisBottom);
+
+                    var line = d3.line()
+                        .x(function(d) { return xScale(d.bin); })
+                        .y(function(d) { return yScale(d.value); });
+
+                    var area = d3.area()                
+                        .x(function(d) { return xScale(d.bin); })
+                        .y0(height).y1(function(d) { return yScale(d.value); });
+
+                    var lines = g.append("g")
+                        .on("mouseover", mouseover)
+                        .on("mousemove", mousemove)
+                        .on("mouseout", mouseout);
+
+                    lines.append("text")
+                        .attr("class", "title")
+                        .attr("text-anchor", "left")
+                        .attr("y", -20)
+                        .attr("dy", margin.bottom / 2 + 5)
+                        .attr("x", 3)
+                        .text((d) => d.key)
+
+                    var area_obj = lines.append("path")
+                        .attr("class", "area")
+                        .attr("d", function(c) {
+                            return area(c.values);
+                        });
+
+                    var line_obj = lines.append("path")
+                        .attr("class", "line")
+                        .attr("d", function(c) {
+                            return line(c.values);
+                        });
+
+                    // hide for now
+                    circle = lines.append("circle")
+                        .attr("r", 2.2)
+                        .attr("opacity", 0);
+
+                    function mouseover() {
+                        circle.attr("opacity", 1.0);
+                    };
+
+                    function mouseout() {
+                        circle.attr("opacity", 0);
+                        return true;
+                    };
+
+                    function mousemove() {
+                        // 'this' is current DOM element
+                        var xpos = d3.mouse(this)[0];
+                        var xBar = xScale.invert(xpos);
+                        var index = 0;
+
+                        circle
+                            .attr("cx", (d) => {
+                                index = bisect(d.values, xBar, 0, d.values.length - 1);
+                                return xScale(d.values[index].bin);
+                            })
+                            .attr("cy", (d) => {
+                                index = bisect(d.values, xBar, 0, d.values.length - 1);
+                                return yScale(d.values[index].value);
+                            });
+                    }
+
+                    //create bisector
+                    // (binary search)
+                    var bisect = d3.bisector(function(d) { return d.bin; }).left;
+
+                    d3.select("#danceability").on("click", () => { 
+                        update(dataDance); 
+                        d3.select("#valence").classed("active", null);
+                        d3.select("#danceability").classed("active", true);
+                    });
+
+                    d3.select("#valence").on("click", () => { 
+                        update(dataValence); 
+                        d3.select("#valence").classed("active", true);
+                        d3.select("#danceability").classed("active", null);
+                    });
+
+                    // ** Update data section (Called from the onclick)
+                    function update(data) {
+                        console.log("Updating data!")
+                        console.log(d3.select("circle").data())
+                        // Select the section we want to apply our changes to
+                        var svg = d3.selectAll(".chart")
+                            .data(data)
+                            .transition();
+
+                        // Make the changes
+                        svg.select(".line")   // change the line
+                            .duration(750)
+                            .attr("d", function(c) {
+                                return line(c.values);
+                            });
+                        
+                        svg.select(".area")
+                            .duration(750)
+                            .attr("d", function(c) {
+                                return area(c.values);
+                            });
+                        
+                        circle.data(data)
+                        console.log(circle.data())
+                    };
+                });
+            })
         </script>        
 </html
